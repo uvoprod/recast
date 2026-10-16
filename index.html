@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Convert images, documents, spreadsheets and ebooks between 23 formats in your browser. Nothing is uploaded.">
+<title>Recast</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Hanken+Grotesk:wght@400;500;600&family=Martian+Mono:wdth,wght@87.5,400;87.5,600&display=swap">
+<style>
+body{margin:0}img{max-width:100%}[hidden]{display:none!important}
+/* Layout concept: one vertical line, the gate, runs through the whole page. It splits the
+   hero headline, splits the 3D machine, then becomes the seam between Input and Output in the
+   converter. Everything is set on either side of that line. Single light theme by choice: the
+   scene is lit as paper on a machine bed. */
+:root{
+  color-scheme:light;
+  --paper:#e8e9e4;      /* the bed */
+  --sheet:#f6f6f2;      /* raised surfaces */
+  --ink:#141614;        /* graphite */
+  --ink-2:#4a4f4b;      /* secondary text, 7:1 on paper */
+  --rule:rgba(20,22,20,.16);
+  --rule-2:rgba(20,22,20,.32);
+  --signal:#2338f5;     /* the gate light; the only accent */
+  --signal-ink:#ffffff;
+  --signal-soft:rgba(35,56,245,.09);
+  --ok:#1d6f45;
+  --err:#b8301d;
+  --display:"Archivo",ui-sans-serif,system-ui,sans-serif;
+  --text:"Hanken Grotesk",ui-sans-serif,system-ui,sans-serif;
+  --mono:"Martian Mono",ui-monospace,Menlo,Consolas,monospace;
+  --fast:160ms;--move:340ms;--slow:700ms;
+  --ease:cubic-bezier(.2,.8,.2,1);--ease-io:cubic-bezier(.65,0,.35,1);
+  --gutter:clamp(16px,4vw,48px);
+  --r:2px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{background:var(--paper);color:var(--ink);font:16px/1.55 var(--text);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--signal);outline-offset:3px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.skip{position:absolute;left:12px;top:-60px;z-index:20;background:var(--ink);color:var(--paper);padding:10px 14px;text-decoration:none}
+.skip:focus{top:12px}
+.mono{font-family:var(--mono);font-size:.8125rem;letter-spacing:-.01em}
+h2{font:700 clamp(30px,4.4vw,56px)/1 var(--display);font-stretch:112%;letter-spacing:-.025em;margin:0;text-wrap:balance}
+.section{padding-inline:var(--gutter);padding-block:clamp(72px,11vw,148px) 0;max-width:1440px;margin:0 auto}
+.section-head{display:grid;grid-template-columns:1fr 1fr;gap:0 48px;align-items:end;margin-bottom:clamp(28px,4vw,48px)}
+.section-head h2{grid-column:1;text-align:right;padding-right:24px}
+.section-head p{grid-column:2;margin:0;max-width:44ch;color:var(--ink-2);padding-left:24px}
+@media (max-width:760px){.section-head{grid-template-columns:1fr}.section-head h2,.section-head p{grid-column:1;text-align:left;padding:0}.section-head p{margin-top:14px}}
+
+/* ------------------------------------------------------------------ nav */
+.nav{position:absolute;inset:0 0 auto;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:20px var(--gutter)}
+.mark{display:inline-flex;align-items:center;gap:7px;text-decoration:none;font:800 22px/1 var(--display);font-stretch:125%;letter-spacing:-.03em}
+.mark i{display:block;width:2px;height:24px;background:var(--signal)}
+.nav nav{display:flex;gap:clamp(14px,2.4vw,30px)}
+.nav nav a{text-decoration:none;font-weight:500;font-size:15px;color:var(--ink-2);padding:6px 0;border-bottom:1.5px solid transparent;transition:color var(--fast),border-color var(--fast)}
+.nav nav a:hover{color:var(--ink);border-color:var(--ink)}
+@media (max-width:760px){.nav nav a:not(.keep){display:none}}
+
+/* ------------------------------------------------------------------ hero */
+.hero{position:relative;min-height:clamp(640px,94vh,960px);display:grid;grid-template-rows:auto auto 1fr;align-content:start;isolation:isolate}
+.hero::after{content:"";position:absolute;left:50%;bottom:-1px;width:1px;height:clamp(40px,8vh,90px);background:var(--signal);transform:translateX(-.5px);z-index:2}
+.stage{position:absolute;inset:0;z-index:0;overflow:hidden}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:1}
+.ext{position:absolute;bottom:clamp(14px,4vh,40px);z-index:0;font:850 clamp(48px,7.4vw,132px)/.8 var(--display);font-stretch:125%;letter-spacing:-.045em;white-space:nowrap;pointer-events:none;user-select:none}
+.ext-in{right:calc(50% + clamp(18px,2.4vw,34px));color:transparent;-webkit-text-stroke:1.5px rgba(20,22,20,.28)}
+.ext-out{left:calc(50% + clamp(18px,2.4vw,34px));color:rgba(35,56,245,.13)}
+.ext span{display:inline-block}
+.ext span.swap{animation:swap .62s var(--ease) both}
+@keyframes swap{0%{clip-path:inset(0 0 0 0);transform:none}45%{clip-path:inset(0 0 0 100%);transform:translateX(-6px)}46%{clip-path:inset(0 100% 0 0);transform:translateX(6px)}100%{clip-path:inset(0 0 0 0);transform:none}}
+.ext-in span.swap{animation-name:swapIn}
+@keyframes swapIn{0%{clip-path:inset(0 0 0 0)}45%{clip-path:inset(0 100% 0 0)}46%{clip-path:inset(0 0 0 100%)}100%{clip-path:inset(0 0 0 0)}}
+.headline{position:relative;z-index:2;grid-row:2;align-self:start;margin:clamp(96px,15vh,150px) 0 0;display:grid;grid-template-columns:1fr 1fr;font:700 clamp(34px,5.2vw,84px)/.94 var(--display);font-stretch:108%;letter-spacing:-.035em;pointer-events:none}
+.headline .l{text-align:right;padding-right:clamp(18px,2.4vw,34px)}
+.headline .r{padding-left:clamp(18px,2.4vw,34px);color:var(--ink)}
+.headline .r em{font-style:normal;color:var(--signal)}
+.headline .w{display:inline-block;overflow:hidden;vertical-align:bottom;padding-bottom:.06em}
+.headline .w>span{display:inline-block}
+.gl .headline .w>span{animation:rise .9s var(--ease) both;animation-delay:calc(.55s + var(--i)*.07s)}
+@keyframes rise{from{transform:translateY(105%)}}
+.foot-row{position:relative;z-index:2;grid-row:3;align-self:start;display:grid;grid-template-columns:1fr 1fr;align-items:start;padding:clamp(20px,3vh,32px) 0 0}
+.lede{grid-column:1;justify-self:end;text-align:right;max-width:44ch;margin:0;padding-right:clamp(18px,2.4vw,34px);color:var(--ink-2);font-size:clamp(15px,1.25vw,17px)}
+.lede b{color:var(--ink);font-weight:600}
+.cta{grid-column:2;justify-self:start;margin-left:clamp(18px,2.4vw,34px);display:inline-flex;align-items:center;gap:12px;background:var(--ink);color:var(--paper);text-decoration:none;font-weight:600;padding:15px 20px 15px 22px;border-radius:var(--r);transition:background var(--fast),transform var(--fast) var(--ease)}
+.cta:hover{background:var(--signal)}
+.cta:active{transform:translateY(1px)}
+.cta svg{transition:transform var(--move) var(--ease)}
+.cta:hover svg{transform:translateY(3px)}
+.fallback{display:none}
+.no-gl .fallback{display:block;position:absolute;left:50%;top:58%;transform:translate(-50%,-50%);width:min(560px,80vw);aspect-ratio:2.2;z-index:1}
+.no-gl .fallback i{position:absolute;bottom:0;width:22%;aspect-ratio:1/1.41;background:var(--sheet);border:1px solid var(--rule-2);box-shadow:0 10px 24px rgba(20,22,20,.12)}
+.no-gl .fallback i:nth-child(1){left:2%;transform:rotate(-3deg)}.no-gl .fallback i:nth-child(2){left:9%}
+.no-gl .fallback i:nth-child(4){right:9%;border-color:var(--signal)}.no-gl .fallback i:nth-child(5){right:2%;transform:rotate(3deg);border-color:var(--signal)}
+.no-gl .fallback b{position:absolute;left:50%;top:-20%;bottom:0;width:2px;background:var(--signal)}
+@media (max-width:760px){
+  .hero{min-height:0;grid-template-rows:auto auto auto auto}
+  .headline{grid-row:2;grid-template-columns:1fr;margin:92px 0 0;padding:0 var(--gutter);font-size:clamp(36px,10.5vw,52px)}
+  .headline .l,.headline .r{text-align:left;padding:0}
+  .stage{position:relative;grid-row:3;height:min(78vw,420px);margin-top:8px}
+  .ext{bottom:6%;font-size:clamp(40px,12vw,72px)}
+  .foot-row{grid-row:4;grid-template-columns:1fr;gap:20px;padding:4px var(--gutter) 36px}
+  .lede{grid-column:1;justify-self:start;text-align:left;padding:0}
+  .cta{grid-column:1;margin:0}
+  .hero::after{display:none}
+}
+
+/* ------------------------------------------------------------------ converter bed */
+.bed-wrap{padding-inline:var(--gutter);max-width:1440px;margin:0 auto}
+.bed-wrap:focus{outline:none}
+.bed{position:relative;display:grid;grid-template-columns:1fr 1px 1fr;background:var(--sheet);border:1px solid var(--rule-2);border-radius:var(--r);box-shadow:0 1px 0 rgba(255,255,255,.7) inset,0 30px 60px -40px rgba(20,22,20,.35);min-height:440px}
+.bed .seam{position:relative;background:var(--signal)}
+.seam-fill{position:absolute;left:-2px;right:-2px;top:0;height:0;background:var(--signal);transition:height var(--move) var(--ease)}
+.seam-scan{position:absolute;left:-3px;right:-3px;height:56px;top:0;background:linear-gradient(transparent,var(--signal),transparent);opacity:0}
+.bed[data-state="working"] .seam-scan{opacity:1;animation:scan 1.4s var(--ease-io) infinite alternate}
+@keyframes scan{to{top:calc(100% - 56px)}}
+.seam-mark{position:absolute;top:26px;left:50%;transform:translate(-50%,0);width:30px;height:30px;display:grid;place-items:center;background:var(--signal);color:var(--signal-ink);border-radius:50%;font-size:15px}
+.side{min-width:0;padding:clamp(20px,3vw,36px);display:flex;flex-direction:column;gap:20px}
+.side-h{display:flex;justify-content:space-between;align-items:baseline;gap:12px;border-bottom:1px solid var(--rule);padding-bottom:12px}
+.side-h h3{margin:0;font:700 20px/1 var(--display);font-stretch:118%;letter-spacing:-.02em}
+.side-h .mono{color:var(--ink-2)}
+@media (max-width:860px){
+  .bed{grid-template-columns:1fr;grid-template-rows:auto 1px auto}
+  .seam-fill{top:-2px;bottom:-2px;left:0;width:0;height:auto!important;transition:width var(--move) var(--ease)}
+  .seam-mark{top:50%;left:28px;transform:translate(0,-50%) rotate(90deg)}
+  .bed[data-state="working"] .seam-scan{display:none}
+}
+
+/* drop zone: fills the input side when empty, folds into a strip once files are in */
+.drop{position:relative;flex:1;display:grid;place-content:center;justify-items:center;text-align:center;gap:10px;min-height:280px;padding:28px 18px;border:1.5px dashed var(--rule-2);border-radius:var(--r);background:
+  repeating-linear-gradient(0deg,transparent 0 23px,rgba(20,22,20,.045) 23px 24px),repeating-linear-gradient(90deg,transparent 0 23px,rgba(20,22,20,.045) 23px 24px);cursor:pointer;transition:border-color var(--fast),background-color var(--fast)}
+.drop:hover{border-color:var(--ink)}
+.drop.over{border-color:var(--signal);border-style:solid;background-color:var(--signal-soft)}
+.drop-title{font:700 clamp(22px,2.4vw,30px)/1.05 var(--display);font-stretch:112%;letter-spacing:-.025em}
+.drop-sub{color:var(--ink-2);max-width:34ch}
+.browse{display:inline-flex;align-items:center;gap:8px;margin-top:6px;background:var(--ink);color:var(--paper);border:0;border-radius:var(--r);padding:11px 16px;font-weight:600;cursor:pointer;transition:background var(--fast)}
+.drop:hover .browse{background:var(--signal)}
+.drop-note{color:var(--ink-2);font-size:12px;margin-top:4px}
+.bed:not([data-state="empty"]) .drop{flex:0 0 auto;min-height:0;grid-auto-flow:column;place-content:center start;justify-items:start;gap:14px;padding:14px 16px;text-align:left}
+.bed:not([data-state="empty"]) .drop-title{font-size:17px}
+.bed:not([data-state="empty"]) .drop-sub,.bed:not([data-state="empty"]) .drop-note{display:none}
+.bed:not([data-state="empty"]) .browse{margin:0;padding:8px 12px;font-size:14px}
+.samples{align-self:flex-start;background:none;border:0;padding:0;color:var(--ink-2);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.samples:hover{color:var(--ink)}
+.bed:not([data-state="empty"]) .samples{display:none}
+
+.files,.results{list-style:none;margin:0;padding:0;display:grid}
+.file,.result{display:grid;grid-template-columns:54px minmax(0,1fr) auto;gap:14px;align-items:center;padding:12px 0;border-bottom:1px solid var(--rule)}
+.file:first-child,.result:first-child{border-top:1px solid var(--rule)}
+.chipx{display:grid;place-items:center;height:30px;border:1px solid var(--rule-2);border-radius:var(--r);font:600 10.5px/1 var(--mono);text-transform:uppercase;letter-spacing:-.02em;background:var(--paper)}
+.result .chipx{background:var(--signal);border-color:var(--signal);color:var(--signal-ink)}
+.result.failed .chipx{background:none;border-color:var(--err);color:var(--err)}
+.fmeta{min-width:0}
+.fname{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fsub{color:var(--ink-2);font-size:13.5px;overflow-wrap:anywhere}
+.fsub .st-err{color:var(--err)}
+.fsub .st-ok{color:var(--ok)}
+.bar{height:2px;background:var(--rule);margin-top:8px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--signal);transition:width var(--move) var(--ease)}
+.bar.indef i{width:30%;animation:indef 1.1s var(--ease-io) infinite alternate}
+@keyframes indef{from{transform:translateX(-100%)}to{transform:translateX(330%)}}
+.file:not(.working) .bar{display:none}
+.rm{border:0;background:none;width:32px;height:32px;border-radius:var(--r);cursor:pointer;color:var(--ink-2);font-size:20px;line-height:1}
+.rm:hover{background:var(--paper);color:var(--ink)}
+.rm:disabled{visibility:hidden}
+
+/* output side */
+.out-empty{flex:1;display:grid;place-content:center;gap:14px;color:var(--ink-2);text-align:center;padding:24px 8px}
+.out-empty p{margin:0}
+.out-empty .ghost{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;max-width:330px;opacity:.55}
+.bed:not([data-state="empty"]) .out-empty{display:none}
+.bed[data-state="empty"] .picker,.bed[data-state="empty"] .go-row{display:none}
+.picker label{display:block;font-weight:600;margin-bottom:8px}
+.search{width:100%;font:inherit;font-size:16px;padding:12px 14px 12px 40px;border:1px solid var(--rule-2);border-radius:var(--r);background:var(--paper) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%234a4f4b' stroke-width='1.6'%3E%3Ccircle cx='7' cy='7' r='5'/%3E%3Cpath d='m11 11 4 4'/%3E%3C/svg%3E") no-repeat 14px 50%;color:var(--ink)}
+.search:focus{outline:2px solid var(--signal);outline-offset:-1px;background-color:var(--sheet)}
+.cats{display:grid;gap:14px;margin-top:16px}
+.cat h4{margin:0 0 7px;font:500 13px/1 var(--text);color:var(--ink-2)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:baseline;gap:7px;padding:8px 11px;border:1px solid var(--rule-2);border-radius:var(--r);background:var(--sheet);cursor:pointer;font-size:14px;transition:border-color var(--fast),background var(--fast),color var(--fast),transform var(--fast) var(--ease)}
+.chip code{font:600 11px/1 var(--mono);text-transform:uppercase;color:var(--signal)}
+.chip:hover{border-color:var(--ink)}
+.chip:active{transform:translateY(1px)}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.chip[aria-pressed="true"] code{color:#9aa5ff}
+.none{color:var(--ink-2);margin:12px 0 0}
+.opts{display:flex;flex-wrap:wrap;gap:14px 28px;padding:14px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.opts[hidden]{display:none}
+.opts label{display:flex;align-items:center;gap:10px;color:var(--ink-2);font-size:14.5px}
+.opts input[type=range]{accent-color:var(--signal);width:130px}
+.opts input[type=number],.opts select{font:inherit;font-size:14.5px;padding:6px 8px;border:1px solid var(--rule-2);border-radius:var(--r);background:var(--paper);color:var(--ink);width:104px}
+.opts select{width:auto}
+.opts input[type=checkbox]{accent-color:var(--signal);width:16px;height:16px}
+.opts output{font:600 12px var(--mono);color:var(--ink);min-width:3ch}
+.go-row{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center}
+.go{display:inline-flex;align-items:center;gap:12px;border:0;border-radius:var(--r);background:var(--signal);color:var(--signal-ink);font-weight:600;font-size:16px;padding:15px 22px;cursor:pointer;transition:background var(--fast),transform var(--fast) var(--ease)}
+.go:hover:not(:disabled){background:#1a2bd0}
+.go:active:not(:disabled){transform:translateY(1px)}
+.go:disabled{background:var(--rule-2);color:var(--sheet);cursor:default}
+.overall{color:var(--ink-2);font-size:14px}
+.after{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.after[hidden]{display:none}
+.btn{border:1px solid var(--rule-2);background:var(--sheet);border-radius:var(--r);padding:9px 14px;font-weight:600;font-size:14px;cursor:pointer;transition:border-color var(--fast),background var(--fast),color var(--fast)}
+.btn:hover{border-color:var(--ink)}
+.btn.solid{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.btn.solid:hover{background:var(--signal);border-color:var(--signal)}
+.btn.saved{color:var(--ok);border-color:var(--ok)}
+.linkish{background:none;border:0;padding:0;color:var(--ink-2);text-decoration:underline;text-underline-offset:3px;cursor:pointer;font-size:14px}
+.linkish:hover{color:var(--ink)}
+.result{animation:land var(--slow) var(--ease) both}
+@keyframes land{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+.guide{color:var(--ink-2);font-size:13px;margin:14px 0 0;text-align:center}
+
+/* ------------------------------------------------------------------ format matrix */
+.matrix-tools{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;margin-bottom:18px}
+.matrix-tools .search{max-width:340px}
+.legend{display:flex;gap:18px;color:var(--ink-2);font-size:13px}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.matrix-scroll{position:relative;overflow-x:auto;border-top:1px solid var(--rule-2);border-bottom:1px solid var(--rule-2)}
+table.matrix{border-collapse:collapse;width:100%;min-width:860px;font-size:13px}
+.matrix th,.matrix td{padding:0;text-align:center;border-bottom:1px solid var(--rule)}
+.matrix thead th{font:600 10.5px/1 var(--mono);text-transform:uppercase;color:var(--ink-2);height:96px;vertical-align:bottom;padding-bottom:10px;white-space:nowrap}
+.matrix thead th span{display:inline-block;writing-mode:vertical-rl;transform:rotate(180deg)}
+.matrix thead th.grp{border-left:1px solid var(--rule-2)}
+.matrix tbody th{text-align:left;padding:7px 14px 7px 0;white-space:nowrap;font-weight:500}
+.matrix tbody th code{display:inline-block;width:52px;font:600 11px var(--mono);text-transform:uppercase;color:var(--signal)}
+.matrix tbody th small{color:var(--ink-2);font-size:13px}
+.matrix td{height:34px;min-width:36px}
+.matrix td.grp{border-left:1px solid var(--rule-2)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--ink)}
+.matrix tr.cat-row th{padding:16px 0 6px;font:700 13px/1 var(--display);font-stretch:118%;color:var(--ink);border-bottom:1px solid var(--rule-2)}
+.matrix tbody tr:not(.cat-row):hover,.matrix tbody tr.hit{background:var(--signal-soft)}
+.matrix td.col-hl{background:var(--signal-soft)}
+.matrix tbody tr.dim{opacity:.25}
+.reveal .dot{transform:scale(0);transition:transform .4s var(--ease);transition-delay:calc(var(--c) * 38ms)}
+.reveal.seen .dot{transform:scale(1)}
+.sweep{position:absolute;top:0;bottom:0;width:2px;background:var(--signal);left:0;opacity:0;pointer-events:none;z-index:1}
+.reveal.seen .sweep{animation:sweep 1.05s var(--ease-io) both}
+@keyframes sweep{0%{left:180px;opacity:1}90%{opacity:1}100%{left:100%;opacity:0}}
+.matrix-note{color:var(--ink-2);font-size:14px;max-width:72ch;margin:18px 0 0}
+
+/* ------------------------------------------------------------------ how it works */
+.flow{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--ink)}
+.flow li{position:relative;padding:22px 22px 6px 0}
+.flow li+li{padding-left:22px;border-left:1px solid var(--rule)}
+.flow .n{font:600 12px var(--mono);color:var(--signal)}
+.flow h3{font:700 24px/1.05 var(--display);font-stretch:115%;letter-spacing:-.02em;margin:10px 0 10px}
+.flow p{margin:0;color:var(--ink-2);font-size:15px;max-width:30ch}
+.flow .libs{margin-top:14px;display:flex;flex-wrap:wrap;gap:5px}
+.flow .libs span{font:500 11px/1 var(--mono);padding:5px 6px;border:1px solid var(--rule);border-radius:var(--r);color:var(--ink-2)}
+.flow li:nth-child(3)::before{content:"";position:absolute;left:-1px;top:-1px;bottom:0;width:2px;background:var(--signal)}
+@media (max-width:900px){.flow{grid-template-columns:1fr 1fr}.flow li:nth-child(3){padding-left:0;border-left:0}.flow li:nth-child(3)::before{display:none}.flow li:nth-child(n+3){border-top:1px solid var(--rule);margin-top:18px}}
+@media (max-width:560px){.flow{grid-template-columns:1fr}.flow li,.flow li+li{padding-left:0;border-left:0}.flow li+li{border-top:1px solid var(--rule);margin-top:14px}}
+
+/* ------------------------------------------------------------------ privacy */
+.ledger{display:grid;grid-template-columns:1fr 1px 1fr}
+.ledger .line{background:var(--signal)}
+.ledger dl{margin:0}
+.ledger .row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;padding:16px 0;border-bottom:1px solid var(--rule)}
+.ledger .row:first-child{border-top:1px solid var(--ink)}
+.ledger dt{font-weight:500}
+.ledger dd{margin:0;text-align:right;font:600 13px/1.5 var(--mono);color:var(--ink)}
+.ledger dd.no{color:var(--ok)}
+.ledger .left{padding-right:clamp(20px,3vw,40px)}
+.ledger .right{padding-left:clamp(20px,3vw,40px);color:var(--ink-2)}
+.ledger .right p{margin:0 0 14px;max-width:46ch}
+.ledger .right p:first-child{color:var(--ink);font:600 clamp(19px,1.6vw,22px)/1.35 var(--text)}
+@media (max-width:760px){.ledger{grid-template-columns:1fr}.ledger .line{display:none}.ledger .left,.ledger .right{padding:0}.ledger .right{margin-top:28px}}
+
+/* ------------------------------------------------------------------ faq */
+.faq{border-top:1px solid var(--ink);max-width:980px;margin-left:auto}
+.faq details{border-bottom:1px solid var(--rule)}
+.faq summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:1fr 24px;gap:16px;align-items:center;padding:20px 0;font:600 clamp(17px,1.5vw,20px)/1.3 var(--text)}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"";width:14px;height:14px;justify-self:end;background:linear-gradient(var(--ink),var(--ink)) center/14px 1.5px no-repeat,linear-gradient(var(--ink),var(--ink)) center/1.5px 14px no-repeat;transition:transform var(--move) var(--ease)}
+.faq details[open] summary::after{transform:rotate(45deg)}
+.faq summary:hover{color:var(--signal)}
+.faq .a{padding:0 40px 22px 0;color:var(--ink-2);max-width:70ch}
+.faq .a p{margin:0 0 10px}
+
+/* ------------------------------------------------------------------ footer */
+footer{margin-top:clamp(80px,12vw,160px);border-top:1px solid var(--rule-2);padding:36px var(--gutter) 48px;display:grid;grid-template-columns:1fr 1px 1fr;max-width:1440px;margin-inline:auto}
+footer .line{background:var(--signal)}
+footer .l{padding-right:32px;display:grid;justify-items:end;align-content:start;gap:14px;text-align:right}
+footer .r{padding-left:32px;color:var(--ink-2);font-size:14px}
+footer .r p{margin:0 0 10px;max-width:52ch}
+footer nav{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px 18px;font-size:14px}
+footer nav a{text-decoration:none;color:var(--ink-2)}
+footer nav a:hover{color:var(--ink)}
+@media (max-width:760px){footer{grid-template-columns:1fr}footer .line{display:none}footer .l{justify-items:start;text-align:left;padding:0}footer nav{justify-content:flex-start}footer .r{padding:24px 0 0}}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:1ms!important;animation-delay:0ms!important;animation-iteration-count:1!important;transition-duration:1ms!important}
+  .bed[data-state="working"] .seam-scan{display:none}
+  .bar.indef i{animation:none;width:100%;opacity:.35}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#convert">Skip to the converter</a>
+
+<header class="nav">
+  <a class="mark" href="#top" aria-label="Recast, back to top">Re<i aria-hidden="true"></i>cast</a>
+  <nav aria-label="Sections">
+    <a class="keep" href="#convert">Convert</a>
+    <a href="#formats">Formats</a>
+    <a href="#how">How it works</a>
+    <a href="#privacy">Privacy</a>
+    <a href="#faq">FAQ</a>
+  </nav>
+</header>
+
+<main id="top">
+  <section class="hero" aria-labelledby="hero-h">
+    <div class="stage" id="stage" aria-hidden="true">
+      <div class="ext ext-in"><span id="ext-in">.HEIC</span></div>
+      <div class="ext ext-out"><span id="ext-out">.JPG</span></div>
+      <canvas id="gl"></canvas>
+      <div class="fallback"><i></i><i></i><b></b><i></i><i></i></div>
+    </div>
+    <h1 class="headline" id="hero-h">
+      <span class="l"><span class="w"><span style="--i:0">Drop in</span></span> <span class="w"><span style="--i:1">anything.</span></span></span>
+      <span class="r"><span class="w"><span style="--i:2">Take out</span></span> <span class="w"><span style="--i:3"><em>what you need.</em></span></span></span>
+    </h1>
+    <div class="foot-row">
+      <p class="lede">Recast converts images, documents, spreadsheets and ebooks between <b>23 formats</b>. It works inside this browser tab, so your files are <b>never uploaded</b> and there's no size cap.</p>
+      <a class="cta" href="#convert">Convert a file
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 1v11M2 7.5 7 12.5l5-5"/></svg></a>
+    </div>
+  </section>
+
+  <div class="bed-wrap" id="convert" tabindex="-1">
+    <section class="bed" id="bed" data-state="empty" aria-label="Converter">
+      <div class="side in">
+        <div class="side-h"><h3>Input</h3><span class="mono" id="in-count">No files yet</span></div>
+        <div class="drop" id="drop" role="button" tabindex="0" aria-label="Choose files to convert" aria-describedby="drop-note">
+          <div class="drop-title">Drop files here</div>
+          <div class="drop-sub">Photos, PDFs, Word and Excel files, ebooks, Markdown. Add as many as you like.</div>
+          <span class="browse" aria-hidden="true">Browse files</span>
+          <div class="drop-note" id="drop-note">No upload and no size cap. Very large files are limited by your device's memory.</div>
+          <input type="file" id="pick" multiple class="sr-only" tabindex="-1" aria-hidden="true">
+        </div>
+        <button class="samples" id="samples" type="button">No files handy? Try two sample files</button>
+        <ul class="files" id="files" aria-label="Files to convert"></ul>
+      </div>
+      <div class="seam" aria-hidden="true"><div class="seam-fill" id="seam"></div><div class="seam-scan"></div><span class="seam-mark">→</span></div>
+      <div class="side out">
+        <div class="side-h"><h3>Output</h3><span class="mono" id="out-count">Waiting for files</span></div>
+        <div class="out-empty">
+          <p>Add files on the left, then pick what they should become.</p>
+          <div class="ghost" aria-hidden="true"><span class="chip"><code>pdf</code></span><span class="chip"><code>jpg</code></span><span class="chip"><code>docx</code></span><span class="chip"><code>png</code></span><span class="chip"><code>md</code></span><span class="chip"><code>xlsx</code></span><span class="chip"><code>epub</code></span><span class="chip"><code>webp</code></span></div>
+        </div>
+        <div class="picker">
+          <label for="q">Convert to</label>
+          <input class="search" id="q" type="search" autocomplete="off" spellcheck="false" placeholder="Type a format: jpg, word, iphone, excel, ebook…">
+          <div class="cats" id="grid"></div>
+        </div>
+        <div class="opts" id="opts" hidden>
+          <label data-o="quality">Quality <input type="range" id="quality" min="10" max="100" value="90"><output id="qv" for="quality">90</output></label>
+          <label data-o="max">Longest side <input type="number" id="max" min="16" placeholder="original" inputmode="numeric"> px</label>
+          <label data-o="dpi">Page sharpness <select id="dpi"><option value="72">Low · 72 dpi</option><option value="150" selected>Normal · 150 dpi</option><option value="300">High · 300 dpi</option></select></label>
+          <label data-o="merge"><input type="checkbox" id="merge"> Combine everything into one PDF</label>
+        </div>
+        <div class="go-row">
+          <button class="go" id="go" type="button" disabled>Choose a format</button>
+          <span class="overall" id="overall" role="status" aria-live="polite"></span>
+        </div>
+        <ul class="results" id="results" aria-label="Converted files"></ul>
+        <div class="after" id="after" hidden>
+          <button class="btn solid" id="saveall" type="button" hidden>Save all as .zip</button>
+          <button class="linkish" id="reset" type="button">Convert another batch</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="section" id="formats" aria-labelledby="formats-h">
+    <div class="section-head">
+      <h2 id="formats-h">What can become what</h2>
+      <p>Every dot is a conversion this page can actually do. Rows are what you have, columns are what you can get.</p>
+    </div>
+    <div class="matrix-tools">
+      <label class="sr-only" for="mq">Look up a format</label>
+      <input class="search" id="mq" type="search" autocomplete="off" spellcheck="false" placeholder="Look up a format, e.g. heic or word">
+      <div class="legend"><span><i class="dot" style="transform:none"></i> Converts directly</span></div>
+    </div>
+    <div class="matrix-scroll reveal" id="matrix-wrap"><div class="sweep" aria-hidden="true"></div><table class="matrix" id="matrix"></table></div>
+    <p class="matrix-note">You can open HEIC, AVIF and SVG but not save in those formats, because browsers can't write them.</p>
+  </section>
+
+  <section class="section" id="how" aria-labelledby="how-h">
+    <div class="section-head">
+      <h2 id="how-h">Four steps, one tab</h2>
+      <p>Your browser does the whole job. The open-source libraries that do the work are named below each step.</p>
+    </div>
+    <ol class="flow">
+      <li><span class="n">01</span><h3>Read</h3><p>The file is opened from your disk into this page's memory.</p><div class="libs"><span>pdf.js</span><span>mammoth</span><span>SheetJS</span><span>heic2any</span><span>UTIF</span><span>JSZip</span></div></li>
+      <li><span class="n">02</span><h3>Take apart</h3><p>It becomes pixels, pages, or a document outline of headings, paragraphs, lists and tables.</p><div class="libs"><span>Canvas</span><span>DOMParser</span><span>marked</span></div></li>
+      <li><span class="n">03</span><h3>Rebuild</h3><p>That structure is written out in the new format, one page or file at a time.</p><div class="libs"><span>pdf-lib</span><span>docx</span><span>Turndown</span><span>omggif</span><span>JSZip</span></div></li>
+      <li><span class="n">04</span><h3>Save</h3><p>You confirm, and the new file goes to your downloads. Close the tab and nothing is left behind.</p></li>
+    </ol>
+  </section>
+
+  <section class="section" id="privacy" aria-labelledby="privacy-h">
+    <div class="section-head">
+      <h2 id="privacy-h">Where your file goes</h2>
+      <p>Short answer: nowhere. Here is exactly what moves and what doesn't.</p>
+    </div>
+    <div class="ledger">
+      <dl class="left">
+        <div class="row"><dt>Read by</dt><dd>This browser tab</dd></div>
+        <div class="row"><dt>Sent to a server</dt><dd class="no">Never</dd></div>
+        <div class="row"><dt>Kept after you close the tab</dt><dd class="no">No</dd></div>
+        <div class="row"><dt>Account or sign-up</dt><dd class="no">None</dd></div>
+        <div class="row"><dt>Downloaded from the internet</dt><dd>Converter code only</dd></div>
+        <div class="row"><dt>Saved to</dt><dd>Your downloads folder</dd></div>
+      </dl>
+      <div class="line" aria-hidden="true"></div>
+      <div class="right">
+        <p>The conversion code runs on your own device, so there is no server for your files to reach.</p>
+        <p>The first time you use a kind of file, the page downloads that converter's code from a public library host (cdnjs, jsDelivr or unpkg). Those requests carry only the address of the code, never your file.</p>
+        <p>Because nothing is uploaded, the only limits are your device's memory and processor. A phone may struggle with a 500-page PDF at 300 dpi; a laptop usually won't.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="faq" aria-labelledby="faq-h">
+    <div class="section-head">
+      <h2 id="faq-h">Questions</h2>
+      <p>About formats, file sizes, quality and privacy.</p>
+    </div>
+    <div class="faq">
+      <details><summary>Is there a file size or file count limit?</summary><div class="a"><p>Recast sets no limit. Files are processed in your browser's memory, so the practical ceiling is your device. Files in a batch are converted one after another, so a long batch is fine; a single huge file (hundreds of megabytes, or a PDF with hundreds of pages at high sharpness) can be slow or fail on a phone.</p></div></details>
+      <details><summary>Will a PDF keep its layout when I turn it into Word or Markdown?</summary><div class="a"><p>Recast rebuilds the text: headings, paragraphs and bullet lists come across, worked out from the font sizes in the PDF. Multi-column layouts, exact fonts and pictures are not kept. If you need the page exactly as it looks, convert the PDF to images instead.</p><p>Scanned PDFs are pictures of pages with no text inside, so there's nothing to extract. Recast tells you when that happens.</p></div></details>
+      <details><summary>What does a document look like when I turn it into a PDF?</summary><div class="a"><p>It's typeset fresh with clean, consistent styling: headings, lists, tables, quotes, code and pictures carry over, but the original's fonts and spacing don't. Text in scripts outside Western European alphabets (Bengali, Chinese, Arabic and so on) is saved as page images so it displays correctly; that text can't be selected in the PDF.</p></div></details>
+      <details><summary>Why can't I save as HEIC or AVIF?</summary><div class="a"><p>Browsers can read these formats but can't write them, so Recast offers JPEG, PNG or WebP instead. WebP needs Chrome, Edge or Firefox; Safari can't create it.</p></div></details>
+      <details><summary>Why do some files arrive in a .zip?</summary><div class="a"><p>Converting a multi-page document to images gives one image per page, so they're bundled into one .zip.</p></div></details>
+      <details><summary>Does it work offline?</summary><div class="a"><p>Recast needs a connection the first time each kind of converter is used, to download its code. The conversion itself happens on your device.</p></div></details>
+      <details><summary>Are my files private?</summary><div class="a"><p>Yes. Files never leave this tab, and closing it discards them. The only network requests the page makes are for its fonts and converter code.</p></div></details>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="l">
+    <a class="mark" href="#top" aria-label="Recast, back to top">Re<i aria-hidden="true"></i>cast</a>
+    <nav aria-label="Footer"><a href="#convert">Convert</a><a href="#formats">Formats</a><a href="#how">How it works</a><a href="#privacy">Privacy</a><a href="#faq">FAQ</a></nav>
+  </div>
+  <div class="line" aria-hidden="true"></div>
+  <div class="r">
+    <p>File conversion that runs in your browser. No uploads, no account, no size cap.</p>
+    <p>Built on open-source work: pdf.js, pdf-lib, mammoth, SheetJS, docx, JSZip, heic2any, UTIF, omggif, marked, Turndown and three.js.</p>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
+<script src="engine.js"></script>
+<script src="scene.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
