@@ -292,6 +292,92 @@ footer nav a{text-decoration:none;color:var(--ink-2)}
 footer nav a:hover{color:var(--ink)}
 @media (max-width:760px){footer{grid-template-columns:1fr}footer .line{display:none}footer .l{justify-items:start;text-align:left;padding:0}footer nav{justify-content:flex-start}footer .r{padding:24px 0 0}}
 
+
+/* ------------------------------------------------------------------ chat view: a second tab, not part of the home page */
+body[data-view="chat"] main,body[data-view="chat"] footer{display:none}
+body:not([data-view="chat"]) .chat{display:none}
+.nav nav a[aria-current="page"]{color:var(--ink);border-color:var(--signal)}
+.nav .tab-chat{display:inline-flex;align-items:center;gap:7px}
+.nav .tab-chat::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--signal)}
+.chat{position:relative;min-height:100vh;padding:96px var(--gutter) 0;display:flex;justify-content:center}
+.chat-col{position:relative;width:min(820px,100%);display:flex;flex-direction:column;min-height:calc(100vh - 96px)}
+.chat-col::before{content:"";position:absolute;left:0;top:0;bottom:0;width:1px;background:var(--signal)}
+.chat-intro{padding:clamp(24px,7vh,80px) 0 28px 28px}
+.chat-intro h1{font:700 clamp(38px,6.4vw,80px)/.92 var(--display);font-stretch:110%;letter-spacing:-.035em;margin:0;text-wrap:balance}
+.chat-intro h1 em{font-style:normal;color:var(--signal)}
+.chat-intro p{color:var(--ink-2);max-width:52ch;margin:18px 0 0}
+.chat-intro .tries{margin-top:26px;display:grid;gap:10px}
+.chat-intro .tries-h{font:500 13px var(--text);color:var(--ink-2)}
+.demo{justify-self:start;margin-top:8px}
+.log{flex:1;display:flex;flex-direction:column;gap:18px;padding:8px 0 24px}
+.msg{position:relative;max-width:min(640px,92%)}
+.msg.me{align-self:flex-end;background:var(--ink);color:var(--paper);padding:11px 15px;border-radius:var(--r);white-space:pre-wrap;overflow-wrap:anywhere;animation:inR var(--move) var(--ease) both}
+.msg.bot{padding-left:28px;max-width:100%;width:100%;animation:inL var(--move) var(--ease) both}
+.msg.bot::before{content:"";position:absolute;left:0;top:9px;width:18px;height:1px;background:var(--signal)}
+.msg.bot::after{content:"";position:absolute;left:-3px;top:6px;width:7px;height:7px;border-radius:50%;background:var(--signal)}
+.who{color:var(--ink-2);display:flex;gap:10px;margin-bottom:6px;text-transform:uppercase;font-size:11px}
+.who time{opacity:.7}
+.body p{margin:0 0 8px;max-width:62ch}
+.body .eg{display:block;font-family:var(--mono);font-size:13px;color:var(--ink);padding:3px 0}
+@keyframes inR{from{opacity:0;transform:translateY(6px)}}
+@keyframes inL{from{opacity:0;clip-path:inset(0 100% 0 0)}to{opacity:1;clip-path:inset(0 0 0 0)}}
+.saychips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.saychip{border:1px solid var(--rule-2);background:var(--sheet);border-radius:var(--r);padding:7px 11px;font-size:14px;cursor:pointer;text-align:left;transition:border-color var(--fast),background var(--fast),color var(--fast)}
+.saychip:hover{border-color:var(--signal);color:var(--signal)}
+.job{margin-top:4px;background:var(--sheet);border:1px solid var(--rule-2);border-radius:var(--r);max-width:640px}
+.job-h{display:flex;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid var(--rule);font-size:11px;letter-spacing:.02em;color:var(--ink)}
+.strip{display:grid;grid-template-columns:1fr 2px 1fr;gap:0 16px;padding:16px 14px;min-height:76px;background:repeating-linear-gradient(90deg,transparent 0 23px,rgba(20,22,20,.045) 23px 24px)}
+.strip .q,.strip .d{display:flex;flex-wrap:wrap;gap:5px;align-content:center;min-width:0}
+.strip .q{justify-content:flex-end}
+.strip .gate{background:var(--signal);position:relative}
+.job.working .strip .gate{box-shadow:0 0 0 3px var(--signal-soft),0 0 18px rgba(35,56,245,.35)}
+.job.failed .strip .gate{background:var(--err)}
+.fchip{font:600 10.5px/1 var(--mono);text-transform:uppercase;padding:6px 7px;border:1px solid var(--rule-2);border-radius:var(--r);background:var(--paper);white-space:nowrap}
+.fchip.active{border-color:var(--signal);outline:2px solid var(--signal-soft);animation:pulse 1s var(--ease-io) infinite alternate}
+@keyframes pulse{to{transform:translateX(4px)}}
+.fchip.out{background:var(--signal);border-color:var(--signal);color:var(--signal-ink)}
+.fchip.fail{border-color:var(--err);color:var(--err);text-decoration:line-through}
+.fchip.ghost{background:none;border-style:dashed;color:var(--ink-2)}
+.fchip.one{font-size:12px;padding:9px 11px}
+.job-s{padding:10px 14px;font-size:13.5px;color:var(--ink-2);border-top:1px solid var(--rule);overflow-wrap:anywhere}
+.job.failed .job-s{color:var(--err)}
+.job-r{list-style:none;margin:0;padding:0 14px}
+.job-r li{display:grid;grid-template-columns:54px minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--rule);animation:land var(--slow) var(--ease) both}
+.job-r .chipx{background:var(--signal);border-color:var(--signal);color:var(--signal-ink)}
+.job-r .fsub.st-err{color:var(--err)}
+.job-a{padding:0 14px}
+.job-a:not(:empty){padding:4px 14px 14px}
+.job .saychips{padding:0 14px 14px;margin:0}
+.composer{position:sticky;bottom:0;z-index:4;margin-left:-1px;padding:12px 0 calc(16px + env(safe-area-inset-bottom,0px)) 0;background:linear-gradient(transparent,var(--paper) 22px)}
+.composer-box{background:var(--sheet);border:1px solid var(--rule-2);border-radius:var(--r);box-shadow:0 18px 40px -26px rgba(20,22,20,.45)}
+.composer-box:focus-within{border-color:var(--signal)}
+.tray{border-bottom:1px solid var(--rule);padding:10px 12px}
+.tray-h{display:flex;justify-content:space-between;align-items:center;color:var(--ink-2);font-size:11px;margin-bottom:8px}
+.tray-row{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.tchip{display:inline-flex;align-items:center;gap:7px;flex:0 0 auto;max-width:240px;border:1px solid var(--rule);border-radius:var(--r);padding:4px 4px 4px 7px;background:var(--paper);font-size:13px}
+.tchip code{font:600 10px var(--mono);text-transform:uppercase;color:var(--signal)}
+.tchip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tchip button{border:0;background:none;cursor:pointer;color:var(--ink-2);font-size:16px;line-height:1;padding:2px 5px;border-radius:var(--r)}
+.tchip button:hover{color:var(--ink);background:var(--sheet)}
+.saybar{display:grid;grid-template-columns:auto 1fr auto;gap:6px;align-items:end;padding:8px}
+.saybar textarea{font:inherit;font-size:16px;resize:none;overflow-y:auto;scrollbar-width:thin;min-height:42px;border:0;background:none;color:var(--ink);padding:9px 6px;max-height:180px;outline:none;line-height:1.45}
+.saybar textarea::placeholder{color:#7b807b}
+.iconbtn{width:42px;height:42px;display:grid;place-items:center;border:0;border-radius:var(--r);background:none;color:var(--ink-2);cursor:pointer}
+.iconbtn:hover{background:var(--paper);color:var(--ink)}
+.sendbtn{background:var(--signal);color:var(--signal-ink)}
+.sendbtn:hover{background:#1a2bd0;color:var(--signal-ink)}
+.sendbtn:disabled{background:var(--rule-2);cursor:default}
+.composer .fine{font-size:12px;color:var(--ink-2);margin:8px 2px 0}
+.chat-over{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:rgba(232,233,228,.86);pointer-events:none}
+.chat-over div{border:2px dashed var(--signal);padding:40px 56px;font:700 clamp(22px,3vw,34px) var(--display);font-stretch:112%;color:var(--signal);background:var(--sheet)}
+@media (max-width:760px){
+  .chat{padding-top:84px}
+  .chat-intro{padding-left:20px}
+  .msg.bot{padding-left:20px}.msg.bot::before{width:12px}
+  .strip{gap:0 10px;padding:12px 10px}
+  .composer .fine{display:none}
+}
+
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:1ms!important;animation-delay:0ms!important;animation-iteration-count:1!important;transition-duration:1ms!important}
   .bed[data-state="working"] .seam-scan{display:none}
@@ -300,12 +386,14 @@ footer nav a:hover{color:var(--ink)}
 </style>
 </head>
 <body>
+<script>document.body.dataset.view = location.hash === '#chat' ? 'chat' : 'home';</script>
 <a class="skip" href="#convert">Skip to the converter</a>
 
 <header class="nav">
   <a class="mark" href="#top" aria-label="Recast, back to top">Re<i aria-hidden="true"></i>cast</a>
   <nav aria-label="Sections">
-    <a class="keep" href="#convert">Convert</a>
+    <a class="keep" href="#convert" data-tab="home">Convert</a>
+    <a class="keep tab-chat" href="#chat" data-tab="chat">Chat</a>
     <a href="#formats">Formats</a>
     <a href="#how">How it works</a>
     <a href="#privacy">Privacy</a>
@@ -444,10 +532,49 @@ footer nav a:hover{color:var(--ink)}
   </section>
 </main>
 
+<section class="chat" id="chat" aria-label="Chat converter">
+  <div class="chat-col">
+    <div class="chat-intro" id="chat-intro">
+      <h1>Just say what <em>you want.</em></h1>
+      <p>Attach files and type it the way you'd say it. Recast works out the formats, combines what you ask it to, and hands you the result. It reads your words with simple rules on this device, and nothing you type or attach leaves this tab.</p>
+      <div class="tries">
+        <span class="tries-h">Things you can ask</span>
+        <div class="saychips">
+          <button type="button" class="saychip">Combine these PDFs into one Markdown file</button>
+          <button type="button" class="saychip">Shrink the photos for email</button>
+          <button type="button" class="saychip">Make a contact sheet of the photos</button>
+          <button type="button" class="saychip">Make a GIF from the photos, fast</button>
+          <button type="button" class="saychip">Make each one a Word file</button>
+        </div>
+        <button type="button" class="btn demo" id="demo">Try the demo pack</button>
+      </div>
+    </div>
+    <div class="log" id="log" role="log" aria-live="polite" aria-label="Conversation"></div>
+    <form class="composer" id="composer">
+      <div class="composer-box">
+        <div class="tray" id="tray" hidden></div>
+        <div class="saybar">
+          <button type="button" class="iconbtn" id="attach" aria-label="Attach files">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M15.5 9.2 9.6 15.1a3.6 3.6 0 0 1-5.1-5.1l6.4-6.4a2.4 2.4 0 0 1 3.4 3.4l-6.2 6.2a1.2 1.2 0 0 1-1.7-1.7l5.6-5.6"/></svg>
+          </button>
+          <label class="sr-only" for="say">Tell Recast what to do</label>
+          <textarea id="say" rows="1" placeholder="e.g. combine these into one PDF" autocomplete="off"></textarea>
+          <button type="submit" class="iconbtn sendbtn" id="send" aria-label="Send">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 9h13M10 4l5 5-5 5"/></svg>
+          </button>
+        </div>
+      </div>
+      <p class="fine">Drop or paste files anywhere. Enter sends, Shift + Enter adds a line. Type <b>help</b> for examples.</p>
+      <input type="file" id="chat-pick" multiple class="sr-only" tabindex="-1" aria-hidden="true">
+    </form>
+  </div>
+  <div class="chat-over" id="chat-over" hidden><div>Drop to attach</div></div>
+</section>
+
 <footer>
   <div class="l">
     <a class="mark" href="#top" aria-label="Recast, back to top">Re<i aria-hidden="true"></i>cast</a>
-    <nav aria-label="Footer"><a href="#convert">Convert</a><a href="#formats">Formats</a><a href="#how">How it works</a><a href="#privacy">Privacy</a><a href="#faq">FAQ</a></nav>
+    <nav aria-label="Footer"><a href="#convert">Convert</a><a href="#chat">Chat</a><a href="#formats">Formats</a><a href="#how">How it works</a><a href="#privacy">Privacy</a><a href="#faq">FAQ</a></nav>
   </div>
   <div class="line" aria-hidden="true"></div>
   <div class="r">
@@ -460,5 +587,6 @@ footer nav a:hover{color:var(--ink)}
 <script src="engine.js"></script>
 <script src="scene.js"></script>
 <script src="app.js"></script>
+<script src="chat.js"></script>
 </body>
 </html>

@@ -37,6 +37,19 @@ Several files can also be combined into one PDF.
 - Documents converted to PDF are typeset fresh with clean styling, not copied pixel for pixel. Text in non-Latin scripts is saved as page images so it displays correctly.
 - Each converter's code is downloaded from a public CDN the first time it's needed, so the first use of each kind of file needs an internet connection.
 
+## Chat tab
+
+Open **Chat** in the top bar (or go to `#chat`) to attach files and say what you want in plain words, for example:
+
+- "combine these PDFs into one Markdown file called Project log"
+- "make each one a Word file"
+- "shrink the photos for email", then "even smaller"
+- "make a contact sheet of the photos"
+- "make a GIF from the photos, 0.5 seconds each"
+- "just the first 3, as PNG at 1200px"
+
+Follow-ups like "actually make it Word" or "make it faster" reuse the last job's files. Requests are read with simple rules in the browser; it isn't an AI chatbot, and nothing typed or attached leaves the tab. **Try the demo pack** loads three sample PDFs and two photos to try it with.
+
 ## How it works
 
 | File | What it does |
@@ -44,6 +57,7 @@ Several files can also be combined into one PDF.
 | `index.html` | Page structure and all styles |
 | `engine.js` | The conversion engine: format table, readers, writers. Loads libraries on demand. |
 | `app.js` | The converter interface, the format matrix, and the hooks into the hero scene |
+| `chat.js` | The Chat tab: reads plain-language requests and runs them as jobs (convert, combine, contact sheet, animated GIF) |
 | `scene.js` | The three.js hero: sheets pass through a scanning gate that rewrites them from the input format to the output format, driven by real conversion progress |
 
 Conversions run on these open-source libraries, each loaded from cdnjs, jsDelivr or unpkg only when needed: [pdf.js](https://github.com/mozilla/pdf.js), [pdf-lib](https://github.com/Hopding/pdf-lib), [mammoth](https://github.com/mwilliamson/mammoth.js), [SheetJS](https://sheetjs.com), [docx](https://github.com/dolanmiu/docx), [JSZip](https://github.com/Stuk/jszip), [heic2any](https://github.com/alexcorvi/heic2any), [UTIF.js](https://github.com/photopea/UTIF.js), [pako](https://github.com/nodeca/pako), [omggif](https://github.com/deanm/omggif), [marked](https://github.com/markedjs/marked), [Turndown](https://github.com/mixmark-io/turndown) and [three.js](https://github.com/mrdoob/three.js).

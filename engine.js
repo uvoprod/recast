@@ -154,7 +154,7 @@ async function ico(c) {
   head.setUint16(10, 1, true); head.setUint16(12, 32, true); head.setUint32(14, png.length, true); head.setUint32(18, 22, true);
   return new Blob([head.buffer, png], {type: 'image/x-icon'});
 }
-function gif(c) { // median-cut palette, then omggif
+function quantize(c) { // median-cut palette (up to 256 colours) and the index of every pixel
   const w = c.width, h = c.height, d = ctx(c).getImageData(0, 0, w, h).data, hist = new Uint32Array(32768);
   let clear = false;
   for (let i = 0; i < d.length; i += 4) {
@@ -199,8 +199,18 @@ function gif(c) { // median-cut palette, then omggif
     }
     idx[p] = cache[k];
   }
-  const buf = new Uint8Array(w * h * 2 + 4096), gw = new GifWriter(buf, w, h, {palette: pal.map(([r, g, b]) => (r << 16) | (g << 8) | b)});
-  gw.addFrame(0, 0, w, h, idx, clear ? {transparent: ti} : {});
+  return {palette: pal.map(([r, g, b]) => (r << 16) | (g << 8) | b), idx, ti, clear};
+}
+function gif(c) { return gifFrames([c]); }
+function gifFrames(frames, delay = 0) { // frames share one size; each gets its own palette
+  const w = frames[0].width, h = frames[0].height, buf = new Uint8Array(w * h * 2 * frames.length + 4096);
+  const gw = new GifWriter(buf, w, h, frames.length > 1 ? {loop: 0} : {});
+  for (const c of frames) {
+    const q = quantize(c), opt = {palette: q.palette};
+    if (q.clear) opt.transparent = q.ti;
+    if (frames.length > 1) { opt.delay = delay; opt.disposal = 2; }
+    gw.addFrame(0, 0, w, h, q.idx, opt);
+  }
   return new Blob([buf.subarray(0, gw.end())], {type: 'image/gif'});
 }
 
